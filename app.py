@@ -34,12 +34,21 @@ st.markdown("""
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;900&display=swap');
 
-    html, body, [class*="css"], .stMarkdown, p, div, span, button, input {
-        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
-        letter-spacing: -0.02em;
+    /* 폰트 및 안티앨리어싱: 아이콘 글리프는 건드리지 않고 텍스트만 적용 */
+    .stApp, .stMarkdown, p, h1, h2, h3, h4, label, input, textarea {
+        font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        letter-spacing: -0.015em;
     }
 
-    /* 스트림릿 기본 요소 숨김 */
+    /* 스트림릿 기본 아이콘 글리프 폰트 보호 (upload 글자 겹침 방지) */
+    [data-testid="stIconMaterial"], .material-symbols-rounded, [class*="material-symbols"] {
+        font-family: 'Material Symbols Rounded' !important;
+        letter-spacing: normal !important;
+    }
+
+    /* 스트림릿 기본 헤더/푸터 숨김 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -55,7 +64,7 @@ st.markdown("""
     section[data-testid="stSidebar"] {
         background-color: #FFFFFF;
         border-right: 1px solid #E4E4E7;
-        padding-top: 1.8rem;
+        padding-top: 1.5rem;
     }
 
     /* BAT 타이포그래피 로고 컴포넌트 */
@@ -63,7 +72,7 @@ st.markdown("""
         font-family: 'Space Grotesk', 'Pretendard', sans-serif !important;
         font-weight: 900;
         line-height: 0.82;
-        font-size: 26px;
+        font-size: 28px;
         letter-spacing: -0.06em;
         color: #000000;
         display: inline-block;
@@ -75,7 +84,7 @@ st.markdown("""
         background: #FFFFFF;
         border: 1px solid #E4E4E7;
         border-radius: 4px;
-        padding: 24px;
+        padding: 20px 24px;
         margin-bottom: 20px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
     }
@@ -86,9 +95,6 @@ st.markdown("""
         color: #000000;
         letter-spacing: -0.03em;
         margin-bottom: 6px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
     }
 
     .bat-card-desc {
@@ -180,6 +186,22 @@ st.markdown("""
         background: transparent !important;
     }
 
+    /* 엑셀 업로더 커스텀: 글자 겹침 방지 */
+    [data-testid="stFileUploader"] {
+        background: #FFFFFF;
+        border: 1px dashed #A1A1AA;
+        border-radius: 4px;
+        padding: 14px;
+    }
+    [data-testid="stFileUploader"] section {
+        padding: 10px 0;
+    }
+    [data-testid="stFileUploader"] button {
+        border-radius: 4px;
+        border: 1px solid #000000;
+        font-weight: 600;
+    }
+
     /* 로그인 상자 */
     .bat-login-container {
         max-width: 400px;
@@ -201,14 +223,6 @@ st.markdown("""
         font-size: 0.82rem;
         color: #71717A;
         margin-bottom: 26px;
-    }
-
-    /* 엑셀 업로더 커스텀 */
-    [data-testid="stFileUploader"] {
-        border: 1px dashed #A1A1AA;
-        border-radius: 4px;
-        padding: 12px;
-        background: #FFFFFF;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -238,15 +252,15 @@ def check_auth():
         </div>
         """, unsafe_allow_html=True)
 
-        with st.form("bat_login_form", clear_on_submit=False):
-            input_pw = st.text_input("PASSWORD", type="password", placeholder="비밀번호 입력", label_visibility="collapsed")
-            submit = st.form_submit_button("인증 및 접속", use_container_width=True, type="primary")
+        with st.form("bat_login_form"):
+            input_pw = st.text_input("PASSWORD", type="password", placeholder="Enter passcode", label_visibility="collapsed")
+            submit = st.form_submit_button("AUTHENTICATE", type="primary", use_container_width=True)
             if submit:
                 if input_pw == expected_pw:
                     st.session_state["authenticated"] = True
                     st.rerun()
                 else:
-                    st.error("비밀번호가 올바르지 않습니다.")
+                    st.error("인증 실패: 비밀번호가 올바르지 않습니다.")
     return False
 
 
@@ -289,18 +303,30 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="bat-card" style="padding: 16px; margin-bottom: 12px;">', unsafe_allow_html=True)
-    st.markdown('<div style="font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #71717A; margin-bottom: 8px;">CONNECTED ACCOUNTS</div>', unsafe_allow_html=True)
+    # 1) 연결된 계정 블록
     if AVAILABLE_ACCOUNTS:
-        badges = "".join(f'<span style="display:inline-block; border: 1px solid #000; color:#000; padding:2px 8px; border-radius:2px; font-size:0.75rem; font-weight:700; margin:2px;">{acc}</span>' for acc in AVAILABLE_ACCOUNTS)
-        st.markdown(badges, unsafe_allow_html=True)
+        badges_html = "".join(
+            f'<span style="display:inline-block; border: 1px solid #000; color:#000; padding:2px 7px; border-radius:2px; font-size:0.75rem; font-weight:700; margin:2px;">{acc}</span>'
+            for acc in AVAILABLE_ACCOUNTS
+        )
     else:
-        st.markdown('<span style="font-size: 0.8rem; color: #000; font-weight: 700;">연결된 계정 없음 (Secrets 설정 필요)</span>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        badges_html = '<span style="font-size: 0.8rem; color: #71717A;">연결된 계정 없음 (Secrets 설정 필요)</span>'
 
-    st.markdown('<div class="bat-card" style="padding: 16px; margin-bottom: 12px;">', unsafe_allow_html=True)
-    st.markdown('<div style="font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #71717A; margin-bottom: 6px;">STANDARD TEMPLATE</div>', unsafe_allow_html=True)
-    st.markdown('<div style="font-size: 0.78rem; color: #71717A; margin-bottom: 12px;">키워드·소재·확장소재 6종 규격</div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="bat-card" style="padding: 14px 16px; margin-bottom: 14px;">
+        <div style="font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #71717A; margin-bottom: 8px;">CONNECTED ACCOUNTS</div>
+        <div>{badges_html}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 2) 템플릿 다운로드 블록
+    st.markdown("""
+    <div class="bat-card" style="padding: 14px 16px; margin-bottom: 14px;">
+        <div style="font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #71717A; margin-bottom: 4px;">STANDARD TEMPLATE</div>
+        <div style="font-size: 0.78rem; color: #71717A; margin-bottom: 10px;">키워드·소재·확장소재 6종 규격</div>
+    </div>
+    """, unsafe_allow_html=True)
+
     template_path = os.path.join(CURRENT_DIR, "템플릿", "광고_일괄관리_템플릿_확장소재포함.xlsx")
     if os.path.exists(template_path):
         with open(template_path, "rb") as f:
@@ -311,18 +337,21 @@ with st.sidebar:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
-    st.markdown('</div>', unsafe_allow_html=True)
 
     if st.session_state.get("authenticated", False) and hasattr(st, "secrets") and "APP_PASSWORD" in st.secrets:
+        st.write("")
         if st.button("LOGOUT", use_container_width=True):
             st.session_state["authenticated"] = False
             st.rerun()
 
 
 # ---------------------------------------------------------
-# 5. 메인 화면 탭
+# 5. 메인 대시보드 탭
 # ---------------------------------------------------------
-tab_manage, tab_snapshot = st.tabs(["01. 일괄 관리 (BATCH OPS)", "02. 현황 스냅샷 (SNAPSHOT)"])
+tab_manage, tab_snapshot = st.tabs([
+    "01. 일괄 관리 (BATCH OPS)",
+    "02. 현황 스냅샷 (SNAPSHOT)"
+])
 
 
 # ---------------------------------------------------------
@@ -372,10 +401,10 @@ with tab_manage:
                     st.error(f"시뮬레이션 실패: {e}")
                     st.session_state.pop("last_plans", None)
 
-    # 시뮬레이션 결과
-    if "last_plans" in st.session_state and st.session_state["last_plans"]:
+    # 시뮬레이션 결과 표시
+    if "last_plans" in st.session_state and st.session_state.get("last_file_name") == getattr(uploaded_file, "name", None):
         plans = st.session_state["last_plans"]
-        stem_name = os.path.splitext(st.session_state.get("last_file_name", "작업"))[0]
+        save_path = st.session_state["last_file"]
 
         ok_plans = [p for p in plans if not p.error]
         c_reg = sum(1 for p in ok_plans if p.action == "등록")
@@ -383,148 +412,142 @@ with tab_manage:
         c_del = sum(1 for p in ok_plans if p.action == "삭제")
         c_err = len(plans) - len(ok_plans)
 
-        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-
-        # BAT 미니멀 모노크롬 스탯
-        s1, s2, s3, s4 = st.columns(4)
-        with s1:
+        st.write("")
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
             st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">CREATE</div><div class="stat-num">{c_reg}</div></div>', unsafe_allow_html=True)
-        with s2:
+        with m2:
             st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">UPDATE</div><div class="stat-num">{c_mod}</div></div>', unsafe_allow_html=True)
-        with s3:
+        with m3:
             st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">DELETE</div><div class="stat-num">{c_del}</div></div>', unsafe_allow_html=True)
-        with s4:
-            st.markdown(f'<div class="bat-stat-box" style="border-color: #71717A;"><div class="stat-lbl">ERROR</div><div class="stat-num">{c_err}</div></div>', unsafe_allow_html=True)
+        with m4:
+            st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">ERROR</div><div class="stat-num">{c_err}</div></div>', unsafe_allow_html=True)
 
-        # 테이블
-        rows_data = []
+        # 세부 테이블
+        rows = []
         for p in plans:
-            rows_data.append({
-                "타입": p.kind,
-                "행": p.row,
+            rows.append({
+                "대상": p.kind,
+                "행번호": p.row,
                 "계정": p.account,
-                "구분": p.action if not p.error else "오류",
-                "계획 내용 및 검증 사유": p.preview()
+                "작업": p.action or "오류",
+                "항목명": p.job.get("기존 값") or p.job.get("키워드") or p.job.get("제목") or "",
+                "상세 계획 / 사유": p.preview()
             })
-        df_plans = pd.DataFrame(rows_data)
+        df_plans = pd.DataFrame(rows)
 
-        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        st.write("")
         st.dataframe(df_plans, use_container_width=True, hide_index=True)
 
-        preview_xlsx_path = os.path.join(config.OUTPUT_DIR, f"{stem_name}_미리보기.xlsx")
-        if os.path.exists(preview_xlsx_path):
-            with open(preview_xlsx_path, "rb") as pf:
+        preview_file = os.path.join(config.OUTPUT_DIR, f"{runner._stem(save_path)}_미리보기.xlsx")
+        if os.path.exists(preview_file):
+            with open(preview_file, "rb") as f:
                 st.download_button(
-                    label="시뮬레이션 사본 내려받기 (.xlsx)",
-                    data=pf.read(),
-                    file_name=f"{stem_name}_미리보기.xlsx",
+                    label="시뮬레이션 검증 엑셀 내려받기",
+                    data=f.read(),
+                    file_name=os.path.basename(preview_file),
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
 
-        # 실제 반영 구역
-        st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+        # 네이버 실제 반영 구역
+        st.write("")
         st.markdown("""
-        <div class="bat-card" style="border-left: 5px solid #000000;">
-            <div class="bat-card-title">네이버 실서버 반영 (EXECUTE)</div>
+        <div class="bat-card" style="border: 1px solid #000000;">
+            <div class="bat-card-title">네이버 검색광고 실제 운영 반영 (EXECUTION)</div>
             <div class="bat-card-desc">
-                시뮬레이션 결과를 확인하였으며, 위 변경 내역을 네이버 광고시스템에 영구 반영합니다.
+                검증된 계획을 네이버 검색광고 서버에 직접 호출하여 실시간 반영합니다.<br>
+                반영 전 스냅샷 백업(JSON)이 자동 생성되며, 기존 데이터 사본 파일에 최종 결과가 기록됩니다.
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        confirm_check = st.checkbox("계획된 작업 내역을 최종 검토하였으며, 네이버 광고 계정에 실제 반영을 승인합니다.")
+        confirm_check = st.checkbox("위 시뮬레이션 내역을 최종 확인하였으며, 네이버 광고 계정에 실제 변경을 승인합니다.")
 
-        if st.button("네이버 반영 실행", type="primary", disabled=not confirm_check):
-            exec_logs = []
-            def exec_log(msg):
-                exec_logs.append(str(msg))
+        col_exec, _ = st.columns([1, 3])
+        with col_exec:
+            btn_apply = st.button("네이버 실제 반영 실행", type="primary", disabled=not confirm_check, use_container_width=True)
 
-            progress_box = st.status("네이버 검색광고 API 반영 작업 진행 중...", expanded=True)
-            with progress_box:
+        if btn_apply:
+            apply_logs = []
+            def apply_web_log(msg):
+                apply_logs.append(str(msg))
+
+            with st.status("네이버 검색광고 API 반영 진행 중...", expanded=True) as status_box:
                 try:
-                    res = runner.apply(
-                        st.session_state["last_file"],
-                        env=ENV,
-                        log=exec_log,
-                        confirm=lambda summary: True
-                    )
-                    progress_box.update(label="반영 작업 완료", state="complete", expanded=False)
-                    st.success(f"처리 결과: 성공 {res.get('done', 0)}건 / 실패 {res.get('failed', 0)}건 / 사전 오류 {res.get('errors', 0)}건")
+                    res = runner.apply(save_path, env=ENV, log=apply_web_log, confirm=lambda _: True)
+                    status_box.update(label="반영 완료", state="complete")
+                    st.success(f"처리 완료: 성공 {res.get('done', 0)}행 / 실패 {res.get('failed', 0)}행 / 사전 오류 {res.get('errors', 0)}행")
 
-                    result_files = sorted(
-                        [os.path.join(config.OUTPUT_DIR, f) for f in os.listdir(config.OUTPUT_DIR)
-                         if f.startswith(f"{stem_name}_결과_") and f.endswith(".xlsx")],
+                    latest_results = sorted(
+                        [os.path.join(config.OUTPUT_DIR, f) for f in os.listdir(config.OUTPUT_DIR) if f.startswith(f"{runner._stem(save_path)}_결과_")],
                         key=os.path.getmtime,
                         reverse=True
                     )
-                    if result_files:
-                        with open(result_files[0], "rb") as rf:
+                    if latest_results and os.path.exists(latest_results[0]):
+                        with open(latest_results[0], "rb") as f:
                             st.download_button(
-                                label="최종 처리 결과 엑셀 내려받기 (.xlsx)",
-                                data=rf.read(),
-                                file_name=os.path.basename(result_files[0]),
+                                label="최종 실행 결과 엑셀 내려받기 (.xlsx)",
+                                data=f.read(),
+                                file_name=os.path.basename(latest_results[0]),
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                 type="primary"
                             )
                 except Exception as e:
-                    progress_box.update(label="작업 중 오류 중단", state="error", expanded=True)
-                    st.error(f"오류: {e}")
+                    status_box.update(label="반영 중단", state="error")
+                    st.error(f"실행 중 치명적 오류 발생: {e}")
 
-            with st.expander("실행 상세 로그"):
-                st.code("\n".join(exec_logs))
+                with st.expander("실행 상세 로그 확인", expanded=True):
+                    st.code("\n".join(apply_logs))
 
 
 # ---------------------------------------------------------
-# TAB 2: 현황 스냅샷
+# TAB 2: 광고 현황 스냅샷 (Snapshot)
 # ---------------------------------------------------------
 with tab_snapshot:
     st.markdown("""
     <div class="bat-card">
-        <div class="bat-card-title">광고 현황 데이터베이스 스냅샷</div>
+        <div class="bat-card-title">네이버 파워링크 실시간 현황 스냅샷</div>
         <div class="bat-card-desc">
-            선택한 광고 계정의 최신 파워링크 키워드, 소재, 확장소재 6종의 전체 현황 및 고유 ID를 엑셀 파일로 추출합니다.
+            광고 계정의 전체 키워드, 소재, 확장소재 6종 및 고유 시스템 ID를 실시간으로 조회하여 엑셀 파일로 추출합니다.<br>
+            추출된 ID는 작업 템플릿 작성 시 타겟 지정용으로 활용할 수 있습니다.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
     if not AVAILABLE_ACCOUNTS:
-        st.warning("조회 가능한 계정 키가 등록되지 않았습니다.")
+        st.warning("등록된 광고 계정 정보가 없습니다. Streamlit Secrets 설정을 확인하십시오.")
     else:
-        target_accounts = st.multiselect(
+        selected_accounts = st.multiselect(
             "대상 광고 계정 선택",
             options=AVAILABLE_ACCOUNTS,
-            default=AVAILABLE_ACCOUNTS[:1]
+            default=AVAILABLE_ACCOUNTS[:2] if len(AVAILABLE_ACCOUNTS) >= 2 else AVAILABLE_ACCOUNTS
         )
 
-        if st.button("현황 엑셀 생성", type="primary"):
-            if not target_accounts:
-                st.warning("계정을 1개 이상 선택하십시오.")
-            else:
-                snap_logs = []
-                def snap_log(msg):
-                    snap_logs.append(str(msg))
+        col_snap, _ = st.columns([1, 3])
+        with col_snap:
+            btn_snap = st.button("실시간 현황 엑셀 생성", type="primary", use_container_width=True)
 
-                snap_status = st.status("네이버 데이터 수집 및 현황 엑셀 생성 중...", expanded=True)
-                with snap_status:
-                    try:
-                        out_path = runner.snapshot(target_accounts, env=ENV, log=snap_log)
-                        if out_path and os.path.exists(out_path):
-                            snap_status.update(label="현황 데이터 추출 완료", state="complete", expanded=False)
-                            st.success("현황 파일 생성이 완료되었습니다.")
-                            with open(out_path, "rb") as sf:
-                                st.download_button(
-                                    label="현황 엑셀 내려받기 (.xlsx)",
-                                    data=sf.read(),
-                                    file_name=os.path.basename(out_path),
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    type="primary"
-                                )
-                        else:
-                            snap_status.update(label="현황 추출 실패", state="error", expanded=True)
-                            st.warning("데이터가 없거나 파일 생성에 실패했습니다.")
-                    except Exception as e:
-                        snap_status.update(label="수집 중 오류 발생", state="error", expanded=True)
-                        st.error(f"오류: {e}")
+        if btn_snap and selected_accounts:
+            snap_logs = []
+            def snap_web_log(msg):
+                snap_logs.append(str(msg))
 
-                with st.expander("수집 상세 로그"):
+            with st.status("네이버 계정 전체 데이터 수집 및 엑셀 작성 중...", expanded=True) as snap_status:
+                try:
+                    out_path = runner.snapshot(selected_accounts, env=ENV, log=snap_web_log)
+                    snap_status.update(label="스냅샷 작성 완료", state="complete")
+                    if out_path and os.path.exists(out_path):
+                        with open(out_path, "rb") as f:
+                            st.download_button(
+                                label="수집된 현황 엑셀 내려받기 (.xlsx)",
+                                data=f.read(),
+                                file_name=os.path.basename(out_path),
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                type="primary"
+                            )
+                except Exception as e:
+                    snap_status.update(label="수집 실패", state="error")
+                    st.error(f"스냅샷 수집 중 오류: {e}")
+
+                with st.expander("데이터 수집 로그", expanded=False):
                     st.code("\n".join(snap_logs))
