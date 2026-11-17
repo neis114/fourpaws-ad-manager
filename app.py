@@ -526,11 +526,10 @@ with tab_manage:
         for p in plans:
             rows.append({
                 "대상": p.kind,
-                "행번호": p.row,
+                "행번호": f"{p.row}행",
                 "계정": p.account,
-                "작업": p.action or "오류",
-                "항목명": p.job.get("기존 값") or p.job.get("키워드") or p.job.get("제목") or "",
-                "상세 계획 / 사유": p.preview()
+                "구분": p.action or "오류",
+                "실행 계획 및 검증 결과": p.preview()
             })
         df_plans = pd.DataFrame(rows)
 
