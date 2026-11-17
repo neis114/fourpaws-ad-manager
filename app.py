@@ -57,11 +57,36 @@ st.markdown("""
         letter-spacing: normal !important;
     }
 
-    /* 스트림릿 기본 헤더/푸터 숨김 */
+    /* 스트림릿 기본 불필요 요소 숨김 (사이드바 토글 버튼은 반드시 유지) */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     .stDeployButton {display: none;}
+    
+    /* 상단 헤더: 배경을 투명하게 두어 사이드바 펼치기/접기 버튼이 정상 작동하도록 유지 */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        z-index: 99;
+    }
+
+    /* 사이드바 접었을 때 다시 여는 화살표 버튼 (BAT Black & White 스타일) */
+    [data-testid="stSidebarCollapsedControl"] {
+        visibility: visible !important;
+        display: flex !important;
+        color: #000000 !important;
+        top: 0.8rem;
+        left: 0.8rem;
+    }
+    [data-testid="stSidebarCollapsedControl"] button {
+        border: 1px solid #000000 !important;
+        border-radius: 4px !important;
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+        transition: all 0.15s ease !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] button:hover {
+        background-color: #000000 !important;
+        color: #FFFFFF !important;
+    }
 
     /* 전체 배경: 세련된 모던 라이트 그레이 */
     .stApp {
