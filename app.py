@@ -381,7 +381,7 @@ with st.sidebar:
 # ---------------------------------------------------------
 tab_manage, tab_snapshot = st.tabs([
     "01. 일괄 관리 (BATCH OPS)",
-    "02. 현황 스냅샷 (SNAPSHOT)"
+    "02. 계정 정보 내려받기"
 ])
 
 
@@ -558,13 +558,46 @@ with tab_manage:
         </div>
         """, unsafe_allow_html=True)
 
-        confirm_check = st.checkbox("위 시뮬레이션 내역을 최종 확인하였으며, 네이버 광고 계정에 실제 변경을 승인합니다.")
+        # 확인창(모달 다이얼로그) 및 실행 로직
+        summary_counts = f"등록 {c_reg}건 · 수정 {c_mod}건 · 삭제 {c_del}건"
+        if c_err > 0:
+            summary_counts += f" (사전 오류 {c_err}건 제외)"
+
+        if hasattr(st, "dialog"):
+            @st.dialog("네이버 광고 실제 운영 반영 확인")
+            def confirm_dialog():
+                st.markdown(f"""
+                <div style="font-size: 0.95rem; line-height: 1.6; color: #18181B; margin-bottom: 12px;">
+                    시뮬레이션된 작업 내역을 <b>네이버 광고 계정에 실제로 반영</b>하시겠습니까?<br>
+                    <div style="margin-top: 8px; padding: 10px 14px; background: #F4F4F5; border-radius: 4px; font-weight: 700;">
+                        반영 대상: {summary_counts}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.warning("⚠️ 실제 네이버 검색광고 서버에 즉시 적용되며, 예산 및 키워드 노출에 직접 영향을 줍니다.")
+                st.write("")
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    if st.button("네, 실제 반영합니다", type="primary", use_container_width=True):
+                        st.session_state["do_execute_apply"] = True
+                        st.rerun()
+                with col_b:
+                    if st.button("취소", use_container_width=True):
+                        st.rerun()
 
         col_exec, _ = st.columns([1, 3])
         with col_exec:
-            btn_apply = st.button("네이버 실제 반영 실행", type="primary", disabled=not confirm_check, use_container_width=True)
+            btn_apply = st.button("네이버 실제 반영 실행", type="primary", use_container_width=True)
 
         if btn_apply:
+            if hasattr(st, "dialog"):
+                confirm_dialog()
+            else:
+                st.session_state["do_execute_apply"] = True
+                st.rerun()
+
+        if st.session_state.get("do_execute_apply", False):
+            st.session_state["do_execute_apply"] = False
             apply_logs = []
             def apply_web_log(msg):
                 apply_logs.append(str(msg))
@@ -598,15 +631,15 @@ with tab_manage:
 
 
 # ---------------------------------------------------------
-# TAB 2: 광고 현황 스냅샷 (Snapshot)
+# TAB 2: 계정 정보 내려받기 (Account Data)
 # ---------------------------------------------------------
 with tab_snapshot:
     st.markdown("""
     <div class="bat-card">
-        <div class="bat-card-title">네이버 파워링크 실시간 현황 스냅샷</div>
+        <div class="bat-card-title">네이버 파워링크 실시간 계정 정보 내려받기</div>
         <div class="bat-card-desc">
-            광고 계정의 전체 키워드, 소재, 확장소재 6종 및 고유 시스템 ID를 실시간으로 조회하여 엑셀 파일로 추출합니다.<br>
-            추출된 ID는 작업 템플릿 작성 시 타겟 지정용으로 활용할 수 있습니다.
+            광고 계정의 전체 키워드, 소재, 확장소재 6종 및 고유 시스템 ID를 실시간으로 조회하여 엑셀 파일로 내려받습니다.<br>
+            내려받은 데이터의 고유 ID는 작업 템플릿 작성 시 대상 지정용으로 편리하게 활용할 수 있습니다.
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -622,7 +655,7 @@ with tab_snapshot:
 
         col_snap, _ = st.columns([1, 3])
         with col_snap:
-            btn_snap = st.button("실시간 현황 엑셀 생성", type="primary", use_container_width=True)
+            btn_snap = st.button("실시간 계정 정보 엑셀 생성", type="primary", use_container_width=True)
 
         if btn_snap and selected_accounts:
             snap_logs = []
@@ -632,11 +665,11 @@ with tab_snapshot:
             with st.status("네이버 계정 전체 데이터 수집 및 엑셀 작성 중...", expanded=True) as snap_status:
                 try:
                     out_path = runner.snapshot(selected_accounts, env=ENV, log=snap_web_log)
-                    snap_status.update(label="스냅샷 작성 완료", state="complete")
+                    snap_status.update(label="계정 정보 수집 완료", state="complete")
                     if out_path and os.path.exists(out_path):
                         with open(out_path, "rb") as f:
                             st.download_button(
-                                label="수집된 현황 엑셀 내려받기 (.xlsx)",
+                                label="수집된 계정 정보 엑셀 내려받기 (.xlsx)",
                                 data=f.read(),
                                 file_name=os.path.basename(out_path),
                                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -644,7 +677,7 @@ with tab_snapshot:
                             )
                 except Exception as e:
                     snap_status.update(label="수집 실패", state="error")
-                    st.error(f"스냅샷 수집 중 오류: {e}")
+                    st.error(f"계정 정보 수집 중 오류: {e}")
 
                 with st.expander("데이터 수집 로그", expanded=False):
                     st.code("\n".join(snap_logs))
