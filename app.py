@@ -306,11 +306,13 @@ def get_env_dict():
         for k, v in st.secrets.items():
             if k.startswith("NAVER_"):
                 env[k] = str(v).strip().strip('"').strip("'")
-    if not env:
+    if env:
+        env["_PATH"] = "Streamlit Secrets (Cloud)"
+    else:
         try:
             env = config.load_env()
         except Exception:
-            env = {}
+            env = {"_PATH": "None"}
     return env
 
 
@@ -387,13 +389,56 @@ tab_manage, tab_snapshot = st.tabs([
 # TAB 1: 광고 일괄관리
 # ---------------------------------------------------------
 with tab_manage:
+    # ── 엔터프라이즈 SaaS 히어로 섹션 ──
     st.markdown("""
-    <div class="bat-card">
-        <div class="bat-card-title">작업 파일 업로드 및 계획 수립</div>
-        <div class="bat-card-desc">
-            표준 양식에 기재된 작업 엑셀을 업로드하고 <b>[실행 계획 시뮬레이션]</b>을 실행하십시오.<br>
-            네이버 검색광고 API에 즉시 반영되지 않으며, 등록·수정·삭제 및 문법 오류 여부를 사전 검증합니다.
+    <div style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #E4E4E7;">
+        <div style="font-size: 0.76rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #71717A; margin-bottom: 6px;">BAT PERFORMANCE AD OPS PLATFORM</div>
+        <div style="font-size: 1.45rem; font-weight: 900; letter-spacing: -0.04em; color: #000000; margin-bottom: 8px;">네이버 파워링크 일괄 관리 파이프라인</div>
+        <div style="font-size: 0.88rem; color: #52525B; line-height: 1.5;">
+            표준 엑셀 단 한 장으로 파워링크 키워드·소재·확장소재 6종을 대량 등록·수정·삭제합니다.<br>
+            모든 작업은 <b>무영향 사전 시뮬레이션(Dry-run)</b> 검증을 거친 후 안전하게 실계정에 동기화됩니다.
         </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── 4단계 워크플로우 카드 ──
+    st.markdown("""
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 26px;">
+        <div class="bat-card" style="padding: 16px; margin: 0; border: 1px solid #E4E4E7;">
+            <div style="font-size: 0.72rem; font-weight: 800; color: #71717A; margin-bottom: 4px;">STEP 01</div>
+            <div style="font-weight: 800; font-size: 0.92rem; color: #000; margin-bottom: 6px;">양식 내려받기</div>
+            <div style="font-size: 0.76rem; color: #71717A; line-height: 1.4;">사이드바에서 표준 양식(.xlsx)을 수령합니다.</div>
+        </div>
+        <div class="bat-card" style="padding: 16px; margin: 0; border: 1px solid #E4E4E7;">
+            <div style="font-size: 0.72rem; font-weight: 800; color: #71717A; margin-bottom: 4px;">STEP 02</div>
+            <div style="font-weight: 800; font-size: 0.92rem; color: #000; margin-bottom: 6px;">작업 내용 기재</div>
+            <div style="font-size: 0.76rem; color: #71717A; line-height: 1.4;">키워드·소재 시트에 등록/수정/삭제를 적습니다.</div>
+        </div>
+        <div class="bat-card" style="padding: 16px; margin: 0; border: 1px solid #E4E4E7;">
+            <div style="font-size: 0.72rem; font-weight: 800; color: #000; margin-bottom: 4px;">STEP 03 (선행)</div>
+            <div style="font-weight: 800; font-size: 0.92rem; color: #000; margin-bottom: 6px;">사전 시뮬레이션</div>
+            <div style="font-size: 0.76rem; color: #71717A; line-height: 1.4;">네이버 미반영 상태로 문법·중복·오류를 검출합니다.</div>
+        </div>
+        <div class="bat-card" style="padding: 16px; margin: 0; border: 1px solid #000; background: #FAFAFA;">
+            <div style="font-size: 0.72rem; font-weight: 800; color: #000; margin-bottom: 4px;">STEP 04 (최종)</div>
+            <div style="font-weight: 800; font-size: 0.92rem; color: #000; margin-bottom: 6px;">네이버 실시간 반영</div>
+            <div style="font-size: 0.76rem; color: #71717A; line-height: 1.4;">최종 승인 후 API로 실제 계정에 동기화합니다.</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── 지원 규격 칩 안내 ──
+    st.markdown("""
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+        <span style="font-size: 0.78rem; font-weight: 800; color: #000; margin-right: 4px;">지원 규격</span>
+        <span style="font-size: 0.74rem; background: #FFFFFF; border: 1px solid #E4E4E7; padding: 2px 8px; border-radius: 2px; color: #52525B;">키워드 (입찰가/상태)</span>
+        <span style="font-size: 0.74rem; background: #FFFFFF; border: 1px solid #E4E4E7; padding: 2px 8px; border-radius: 2px; color: #52525B;">단일형 소재 (TEXT_45)</span>
+        <span style="font-size: 0.74rem; background: #FFFFFF; border: 1px solid #E4E4E7; padding: 2px 8px; border-radius: 2px; color: #52525B;">추가제목</span>
+        <span style="font-size: 0.74rem; background: #FFFFFF; border: 1px solid #E4E4E7; padding: 2px 8px; border-radius: 2px; color: #52525B;">추가설명</span>
+        <span style="font-size: 0.74rem; background: #FFFFFF; border: 1px solid #E4E4E7; padding: 2px 8px; border-radius: 2px; color: #52525B;">홍보문구</span>
+        <span style="font-size: 0.74rem; background: #FFFFFF; border: 1px solid #E4E4E7; padding: 2px 8px; border-radius: 2px; color: #52525B;">서브링크</span>
+        <span style="font-size: 0.74rem; background: #FFFFFF; border: 1px solid #E4E4E7; padding: 2px 8px; border-radius: 2px; color: #52525B;">이미지형서브링크</span>
+        <span style="font-size: 0.74rem; background: #FFFFFF; border: 1px solid #E4E4E7; padding: 2px 8px; border-radius: 2px; color: #52525B;">파워링크이미지</span>
     </div>
     """, unsafe_allow_html=True)
 
