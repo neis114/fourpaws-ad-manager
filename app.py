@@ -488,24 +488,38 @@ with tab_manage:
 
         st.write("")
         m1, m2, m3, m4 = st.columns(4)
-        if HAS_SHADCN:
-            with m1:
-                ui.metric_card(title="CREATE", content=str(c_reg), description="신규 등록 예정", key="m1")
-            with m2:
-                ui.metric_card(title="UPDATE", content=str(c_mod), description="항목 수정 예정", key="m2")
-            with m3:
-                ui.metric_card(title="DELETE", content=str(c_del), description="항목 삭제 예정", key="m3")
-            with m4:
-                ui.metric_card(title="ERROR", content=str(c_err), description="사전 검증 실패", key="m4")
-        else:
-            with m1:
-                st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">CREATE</div><div class="stat-num">{c_reg}</div></div>', unsafe_allow_html=True)
-            with m2:
-                st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">UPDATE</div><div class="stat-num">{c_mod}</div></div>', unsafe_allow_html=True)
-            with m3:
-                st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">DELETE</div><div class="stat-num">{c_del}</div></div>', unsafe_allow_html=True)
-            with m4:
-                st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">ERROR</div><div class="stat-num">{c_err}</div></div>', unsafe_allow_html=True)
+        with m1:
+            st.markdown(f'''
+            <div class="bat-stat-box">
+                <div class="stat-lbl">CREATE</div>
+                <div class="stat-num">{c_reg}</div>
+                <div style="font-size:0.75rem; color:#71717A; margin-top:4px; font-weight:500;">신규 등록 예정</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with m2:
+            st.markdown(f'''
+            <div class="bat-stat-box">
+                <div class="stat-lbl">UPDATE</div>
+                <div class="stat-num">{c_mod}</div>
+                <div style="font-size:0.75rem; color:#71717A; margin-top:4px; font-weight:500;">항목 수정 예정</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with m3:
+            st.markdown(f'''
+            <div class="bat-stat-box">
+                <div class="stat-lbl">DELETE</div>
+                <div class="stat-num">{c_del}</div>
+                <div style="font-size:0.75rem; color:#71717A; margin-top:4px; font-weight:500;">항목 삭제 예정</div>
+            </div>
+            ''', unsafe_allow_html=True)
+        with m4:
+            st.markdown(f'''
+            <div class="bat-stat-box">
+                <div class="stat-lbl">ERROR</div>
+                <div class="stat-num">{c_err}</div>
+                <div style="font-size:0.75rem; color:#71717A; margin-top:4px; font-weight:500;">사전 검증 실패</div>
+            </div>
+            ''', unsafe_allow_html=True)
 
         # 세부 계획 테이블
         rows = []
