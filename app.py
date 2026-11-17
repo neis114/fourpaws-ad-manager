@@ -1,15 +1,24 @@
 """네이버 검색광고(파워링크) 일괄관리 웹 대시보드.
 
 - 톤앤매너: BAT 브랜드 아이덴티티 기반 High-end Black & White (Monochrome & Minimalist)
+- UI 시스템: shadcn/ui 기반 모던 SaaS 인터페이스 (Graceful Fallback 지원)
 - 지원 기능: 키워드·소재·확장소재 6종 등록/수정/삭제/입찰가 변경, 미리보기, 실행, 현황 스냅샷
 """
 
 import datetime as dt
+import glob
 import os
 import sys
 
 import pandas as pd
 import streamlit as st
+
+# shadcn/ui 라이브러리 (클라우드 환경에서 사용, 미설치 시 기본 UI로 안전하게 fallback)
+try:
+    import streamlit_shadcn_ui as ui
+    HAS_SHADCN = True
+except ImportError:
+    HAS_SHADCN = False
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
@@ -34,12 +43,12 @@ st.markdown("""
     @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;900&display=swap');
 
-    /* 폰트 및 안티앨리어싱: 아이콘 글리프는 건드리지 않고 텍스트만 적용 */
-    .stApp, .stMarkdown, p, h1, h2, h3, h4, label, input, textarea {
+    /* 텍스트 영역에만 Pretendard 적용 (아이콘 글리프 보호) */
+    .stApp, .stMarkdown, p, h1, h2, h3, h4, label, [data-testid="stText"] {
         font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        letter-spacing: -0.015em;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        letter-spacing: -0.015em;
     }
 
     /* 스트림릿 기본 아이콘 글리프 폰트 보호 (upload 글자 겹침 방지) */
@@ -54,10 +63,10 @@ st.markdown("""
     header {visibility: hidden;}
     .stDeployButton {display: none;}
 
-    /* 전체 배경: 세련된 퓨어 라이트 그레이 */
+    /* 전체 배경: 세련된 모던 라이트 그레이 */
     .stApp {
         background-color: #FAFAFA;
-        color: #000000;
+        color: #09090B;
     }
 
     /* 사이드바 */
@@ -83,7 +92,7 @@ st.markdown("""
     .bat-card {
         background: #FFFFFF;
         border: 1px solid #E4E4E7;
-        border-radius: 4px;
+        border-radius: 6px;
         padding: 20px 24px;
         margin-bottom: 20px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
@@ -92,7 +101,7 @@ st.markdown("""
     .bat-card-title {
         font-size: 1.05rem;
         font-weight: 800;
-        color: #000000;
+        color: #09090B;
         letter-spacing: -0.03em;
         margin-bottom: 6px;
     }
@@ -107,14 +116,14 @@ st.markdown("""
     /* 블랙 & 화이트 스탯 지표 */
     .bat-stat-box {
         background: #FFFFFF;
-        border: 1px solid #000000;
-        border-radius: 4px;
+        border: 1px solid #09090B;
+        border-radius: 6px;
         padding: 16px 12px;
         text-align: center;
         transition: all 0.15s ease;
     }
     .bat-stat-box:hover {
-        background: #000000;
+        background: #09090B;
         color: #FFFFFF !important;
     }
     .bat-stat-box:hover .stat-lbl,
@@ -131,9 +140,9 @@ st.markdown("""
         margin-bottom: 4px;
     }
     .stat-num {
-        font-size: 1.5rem;
+        font-size: 1.55rem;
         font-weight: 900;
-        color: #000000;
+        color: #09090B;
         font-family: 'Space Grotesk', sans-serif !important;
     }
 
@@ -142,23 +151,23 @@ st.markdown("""
         border-radius: 4px;
         font-weight: 700;
         font-size: 0.88rem;
-        padding: 0.6rem 1.2rem;
+        padding: 0.55rem 1.2rem;
         transition: all 0.15s ease;
-        border: 1px solid #000000;
+        border: 1px solid #09090B;
         background-color: #FFFFFF;
-        color: #000000;
+        color: #09090B;
     }
     div.stButton > button:hover {
-        background-color: #000000;
+        background-color: #09090B;
         color: #FFFFFF;
-        border-color: #000000;
+        border-color: #09090B;
     }
 
     /* 메인 블랙 버튼 */
     div.stButton > button[kind="primary"] {
-        background: #000000 !important;
+        background: #09090B !important;
         color: #FFFFFF !important;
-        border: 1px solid #000000 !important;
+        border: 1px solid #09090B !important;
     }
     div.stButton > button[kind="primary"]:hover {
         background: #27272A !important;
@@ -181,8 +190,8 @@ st.markdown("""
         background: transparent;
     }
     .stTabs [aria-selected="true"] {
-        color: #000000 !important;
-        border-bottom: 2px solid #000000 !important;
+        color: #09090B !important;
+        border-bottom: 2px solid #09090B !important;
         background: transparent !important;
     }
 
@@ -190,26 +199,21 @@ st.markdown("""
     [data-testid="stFileUploader"] {
         background: #FFFFFF;
         border: 1px dashed #A1A1AA;
-        border-radius: 4px;
+        border-radius: 6px;
         padding: 14px;
     }
     [data-testid="stFileUploader"] section {
-        padding: 10px 0;
-    }
-    [data-testid="stFileUploader"] button {
-        border-radius: 4px;
-        border: 1px solid #000000;
-        font-weight: 600;
+        padding: 8px 0;
     }
 
     /* 로그인 상자 */
     .bat-login-container {
         max-width: 400px;
-        margin: 80px auto;
+        margin: 60px auto;
         background: #FFFFFF;
         padding: 40px 32px;
-        border: 1px solid #000000;
-        border-radius: 4px;
+        border: 1px solid #09090B;
+        border-radius: 6px;
         text-align: center;
     }
     .bat-login-title {
@@ -306,7 +310,7 @@ with st.sidebar:
     # 1) 연결된 계정 블록
     if AVAILABLE_ACCOUNTS:
         badges_html = "".join(
-            f'<span style="display:inline-block; border: 1px solid #000; color:#000; padding:2px 7px; border-radius:2px; font-size:0.75rem; font-weight:700; margin:2px;">{acc}</span>'
+            f'<span style="display:inline-block; border: 1px solid #09090B; color:#09090B; padding:2px 7px; border-radius:3px; font-size:0.75rem; font-weight:700; margin:2px;">{acc}</span>'
             for acc in AVAILABLE_ACCOUNTS
         )
     else:
@@ -324,7 +328,6 @@ with st.sidebar:
     <div class="bat-card" style="padding: 14px 16px; margin-bottom: 14px;">
         <div style="font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #71717A; margin-bottom: 4px;">STANDARD TEMPLATE</div>
         <div style="font-size: 0.78rem; color: #71717A; margin-bottom: 10px;">키워드·소재·확장소재 6종 규격</div>
-    </div>
     """, unsafe_allow_html=True)
 
     template_path = os.path.join(CURRENT_DIR, "템플릿", "광고_일괄관리_템플릿_확장소재포함.xlsx")
@@ -337,6 +340,7 @@ with st.sidebar:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if st.session_state.get("authenticated", False) and hasattr(st, "secrets") and "APP_PASSWORD" in st.secrets:
         st.write("")
@@ -414,16 +418,26 @@ with tab_manage:
 
         st.write("")
         m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">CREATE</div><div class="stat-num">{c_reg}</div></div>', unsafe_allow_html=True)
-        with m2:
-            st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">UPDATE</div><div class="stat-num">{c_mod}</div></div>', unsafe_allow_html=True)
-        with m3:
-            st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">DELETE</div><div class="stat-num">{c_del}</div></div>', unsafe_allow_html=True)
-        with m4:
-            st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">ERROR</div><div class="stat-num">{c_err}</div></div>', unsafe_allow_html=True)
+        if HAS_SHADCN:
+            with m1:
+                ui.metric_card(title="CREATE", content=str(c_reg), description="신규 등록 예정", key="m1")
+            with m2:
+                ui.metric_card(title="UPDATE", content=str(c_mod), description="항목 수정 예정", key="m2")
+            with m3:
+                ui.metric_card(title="DELETE", content=str(c_del), description="항목 삭제 예정", key="m3")
+            with m4:
+                ui.metric_card(title="ERROR", content=str(c_err), description="사전 검증 실패", key="m4")
+        else:
+            with m1:
+                st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">CREATE</div><div class="stat-num">{c_reg}</div></div>', unsafe_allow_html=True)
+            with m2:
+                st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">UPDATE</div><div class="stat-num">{c_mod}</div></div>', unsafe_allow_html=True)
+            with m3:
+                st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">DELETE</div><div class="stat-num">{c_del}</div></div>', unsafe_allow_html=True)
+            with m4:
+                st.markdown(f'<div class="bat-stat-box"><div class="stat-lbl">ERROR</div><div class="stat-num">{c_err}</div></div>', unsafe_allow_html=True)
 
-        # 세부 테이블
+        # 세부 계획 테이블
         rows = []
         for p in plans:
             rows.append({
@@ -452,7 +466,7 @@ with tab_manage:
         # 네이버 실제 반영 구역
         st.write("")
         st.markdown("""
-        <div class="bat-card" style="border: 1px solid #000000;">
+        <div class="bat-card" style="border: 1px solid #09090B;">
             <div class="bat-card-title">네이버 검색광고 실제 운영 반영 (EXECUTION)</div>
             <div class="bat-card-desc">
                 검증된 계획을 네이버 검색광고 서버에 직접 호출하여 실시간 반영합니다.<br>
@@ -479,7 +493,7 @@ with tab_manage:
                     st.success(f"처리 완료: 성공 {res.get('done', 0)}행 / 실패 {res.get('failed', 0)}행 / 사전 오류 {res.get('errors', 0)}행")
 
                     latest_results = sorted(
-                        [os.path.join(config.OUTPUT_DIR, f) for f in os.listdir(config.OUTPUT_DIR) if f.startswith(f"{runner._stem(save_path)}_결과_")],
+                        glob.glob(os.path.join(config.OUTPUT_DIR, f"{runner._stem(save_path)}_결과_*.xlsx")),
                         key=os.path.getmtime,
                         reverse=True
                     )
