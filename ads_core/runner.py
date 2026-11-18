@@ -17,6 +17,8 @@ KEYWORD_HEADER = ['계정', '캠페인', '광고그룹', '키워드', '입찰가
                   '광고그룹 ID', '키워드 ID']
 AD_HEADER = ['계정', '캠페인', '광고그룹', '제목', '소재 설명', 'PC URL', '모바일 URL', '상태', '검수상태', '소재 유형',
              '광고그룹 ID', '소재 ID']     # 소재 유형: 단일형(TEXT_45) / 반응형(RSA_AD, 제목·설명이 소재 구성요소에 있어 비어 보인다)
+CAMPAIGN_HEADER = ['계정', '캠페인', '캠페인 ID', '캠페인 유형', '하루 예산', '상태', '검수상태']
+ADGROUP_HEADER = ['계정', '캠페인', '광고그룹', '광고그룹 ID', '기본 입찰가', '상태', '검수상태']
 
 
 def _tag(p):
@@ -241,14 +243,43 @@ def apply(path, env=None, log=print, confirm=None, should_stop=None):
     return {'done': done, 'failed': failed, 'errors': len(errors), 'backup': backup_path, 'result_file': writer.dst}
 
 
-def snapshot(accounts, env=None, log=print):
-    """계정의 파워링크 키워드·소재·확장소재 현황을 output 의 "현황_<일시>.xlsx"(시트 이름: 키워드·소재·추가제목 등)로 저장한다(ID 확인·복사용)."""
+def snapshot(accounts, env=None, log=print, targets=None):
+    """계정의 파워링크 현황을 output 의 "현황_<일시>.xlsx" 로 저장한다.
+    targets: 수집 대상 리스트 (예: ['전체'], ['캠페인', '그룹'], ['키워드'], ['소재'], ['확장소재'])
+    미지정 또는 '전체' 포함 시 모든 시트(캠페인·그룹·키워드·소재·확장소재 6종)를 수집한다.
+    """
     env = env or config.load_env()
     planner = Planner(env)
-    kw_rows, ad_rows = [KEYWORD_HEADER], [AD_HEADER]
-    ext_rows = {k.name: [k.snapshot_header] for k in specs.EXT_KINDS}
-    ext_by_type = {k.type: k for k in specs.EXT_KINDS}
+
+    # 타겟 파싱
+    if not targets:
+        inc_camp = inc_grp = inc_kw = inc_ad = inc_ext = True
+    else:
+        is_all = '전체' in targets
+        inc_camp = is_all or ('캠페인' in targets)
+        inc_grp = is_all or ('그룹' in targets)
+        inc_kw = is_all or ('키워드' in targets)
+        inc_ad = is_all or ('소재' in targets)
+        inc_ext = is_all or ('확장소재' in targets)
+
+    target_labels = []
+    if inc_camp: target_labels.append('캠페인')
+    if inc_grp: target_labels.append('그룹')
+    if inc_kw: target_labels.append('키워드')
+    if inc_ad: target_labels.append('소재')
+    if inc_ext: target_labels.append('확장소재')
+    log(f'수집 대상 항목: {", ".join(target_labels)}')
+
+    camp_rows = [CAMPAIGN_HEADER] if inc_camp else []
+    grp_rows = [ADGROUP_HEADER] if inc_grp else []
+    kw_rows = [KEYWORD_HEADER] if inc_kw else []
+    ad_rows = [AD_HEADER] if inc_ad else []
+    ext_rows = {k.name: [k.snapshot_header] for k in specs.EXT_KINDS} if inc_ext else {}
+    ext_by_type = {k.type: k for k in specs.EXT_KINDS} if inc_ext else {}
+
     failed = []       # 조회에 끝내 실패한 광고그룹
+    need_groups = inc_grp or inc_kw or inc_ad or inc_ext
+
     for code in accounts:
         api = planner.api(code)
         log(f'{code}: 파워링크 현황 조회 중...')
@@ -257,46 +288,110 @@ def snapshot(accounts, env=None, log=print):
             log(f'  ⚠️ {code}: 파워링크(WEB_SITE) 캠페인이 없어 건너뜁니다. 이 계정의 캠페인: {api.campaign_summary()} '
                 '(이 도구는 파워링크만 다룹니다)')
             continue
+
         for camp in camps:
-            groups = api.adgroups(camp['nccCampaignId'])
-            log(f'  · {camp["name"]} ({len(groups)}개 광고그룹)')
+            cid = camp['nccCampaignId']
+            cname = camp['name']
+
+            if inc_camp:
+                camp_rows.append([
+                    code.upper(), cname, cid,
+                    camp.get('campaignType', 'WEB_SITE'),
+                    camp.get('dailyBudget', ''),
+                    'OFF' if camp.get('userLock') else 'ON',
+                    camp.get('inspectStatus', '')
+                ])
+
+            if not need_groups:
+                continue
+
+            groups = api.adgroups(cid)
+            log(f'  · {cname} ({len(groups)}개 광고그룹)')
+
             for grp in groups:
                 gid = grp['nccAdgroupId']
-                base = [code.upper(), camp['name'], grp['name']]
-                try:    # 한 광고그룹의 조회가 재시도 끝에도 실패하면 그 그룹만 건너뛴다(몇 분 걸려 모은 나머지를 버리지 않기 위해)
-                    keywords, ads, exts = api.keywords(gid), api.ads(gid), api.extensions(gid)
-                except ApiError as e:
-                    failed.append(f'{code} / {camp["name"]} / {grp["name"]}')
-                    log(f'    ⚠️ 조회 실패로 건너뜀: {grp["name"]} ({e})')
+                gname = grp['name']
+                base = [code.upper(), cname, gname]
+
+                if inc_grp:
+                    grp_rows.append([
+                        code.upper(), cname, gname, gid,
+                        grp.get('bidAmt', ''),
+                        'OFF' if grp.get('userLock') else 'ON',
+                        grp.get('inspectStatus', '')
+                    ])
+
+                # 키워드/소재/확장소재가 모두 불필요하면 광고그룹 하위 API 호출은 생략 (초고속!)
+                if not (inc_kw or inc_ad or inc_ext):
                     continue
-                for k in keywords:
-                    own = not k.get('useGroupBidAmt')
-                    kw_rows.append(base + [k['keyword'], k.get('bidAmt') if own else grp.get('bidAmt'),
-                                           '개별' if own else '그룹', 'OFF' if k.get('userLock') else 'ON',
-                                           k.get('inspectStatus', ''), gid, k['nccKeywordId']])
-                for a in ads:
-                    ad = a.get('ad') or {}
-                    ad_rows.append(base + [ad.get('headline', ''), ad.get('description', ''),
-                                           (ad.get('pc') or {}).get('final', ''),
-                                           (ad.get('mobile') or {}).get('final', ''),
-                                           'OFF' if a.get('userLock') else 'ON', a.get('inspectStatus', ''),
-                                           ad_type_label(a.get('type')), gid, a['nccAdId']])
-                for x in exts:
-                    kind = ext_by_type.get(x.get('type'))
-                    if not kind or not x.get('adExtension'):      # 지원하지 않는 종류(플레이스·전화번호 등)는 건너뜀
-                        continue
-                    cur = kind.read(x['adExtension'])
-                    ext_rows[kind.name].append(
-                        base + [cur[c] for c in kind.values]
-                        + [specs.iso_to_date(x.get('periodStartDt')) if x.get('usePeriod') else '',
-                           specs.iso_to_date(x.get('periodEndDt')) if x.get('usePeriod') else '',
-                           'OFF' if x.get('userLock') else 'ON', x.get('inspectStatus', ''), gid, x['nccAdExtensionId']])
-        log(f'  {code}: 키워드 {len(kw_rows) - 1}행 · 소재 {len(ad_rows) - 1}행 · '
-            + ' · '.join(f'{n} {len(r) - 1}행' for n, r in ext_rows.items()) + ' (누적)')
-    tables = {'키워드': kw_rows, '소재': ad_rows, **ext_rows}
-    if not any(len(r) > 1 for r in tables.values()):     # 가져올 게 하나도 없으면 빈 파일을 만들지 않는다
-        log('\n가져온 현황이 없어 파일을 만들지 않았습니다. 파워링크 캠페인이 있는 계정(예: PETDOC, BS, SJ, PETBARAGI)을 선택하세요.')
+
+                keywords, ads, exts = [], [], []
+                try:
+                    if inc_kw:
+                        keywords = api.keywords(gid)
+                    if inc_ad:
+                        ads = api.ads(gid)
+                    if inc_ext:
+                        exts = api.extensions(gid)
+                except ApiError as e:
+                    failed.append(f'{code} / {cname} / {gname}')
+                    log(f'    ⚠️ 조회 실패로 건너뜀: {gname} ({e})')
+                    continue
+
+                if inc_kw:
+                    for k in keywords:
+                        own = not k.get('useGroupBidAmt')
+                        kw_rows.append(base + [k['keyword'], k.get('bidAmt') if own else grp.get('bidAmt'),
+                                               '개별' if own else '그룹', 'OFF' if k.get('userLock') else 'ON',
+                                               k.get('inspectStatus', ''), gid, k['nccKeywordId']])
+                if inc_ad:
+                    for a in ads:
+                        ad = a.get('ad') or {}
+                        ad_rows.append(base + [ad.get('headline', ''), ad.get('description', ''),
+                                               (ad.get('pc') or {}).get('final', ''),
+                                               (ad.get('mobile') or {}).get('final', ''),
+                                               'OFF' if a.get('userLock') else 'ON', a.get('inspectStatus', ''),
+                                               ad_type_label(a.get('type')), gid, a['nccAdId']])
+                if inc_ext:
+                    for x in exts:
+                        kind = ext_by_type.get(x.get('type'))
+                        if not kind or not x.get('adExtension'):
+                            continue
+                        cur = kind.read(x['adExtension'])
+                        ext_rows[kind.name].append(
+                            base + [cur[c] for c in kind.values]
+                            + [specs.iso_to_date(x.get('periodStartDt')) if x.get('usePeriod') else '',
+                               specs.iso_to_date(x.get('periodEndDt')) if x.get('usePeriod') else '',
+                               'OFF' if x.get('userLock') else 'ON', x.get('inspectStatus', ''), gid, x['nccAdExtensionId']])
+
+        # 계정별 누적 로그
+        counts_msg = []
+        if inc_camp: counts_msg.append(f'캠페인 {len(camp_rows) - 1}행')
+        if inc_grp: counts_msg.append(f'그룹 {len(grp_rows) - 1}행')
+        if inc_kw: counts_msg.append(f'키워드 {len(kw_rows) - 1}행')
+        if inc_ad: counts_msg.append(f'소재 {len(ad_rows) - 1}행')
+        if inc_ext:
+            counts_msg.extend(f'{n} {len(r) - 1}행' for n, r in ext_rows.items())
+        log(f'  {code}: {" · ".join(counts_msg)} (누적)')
+
+    tables = {}
+    if inc_camp and len(camp_rows) > 1:
+        tables['캠페인'] = camp_rows
+    if inc_grp and len(grp_rows) > 1:
+        tables['그룹'] = grp_rows
+    if inc_kw and len(kw_rows) > 1:
+        tables['키워드'] = kw_rows
+    if inc_ad and len(ad_rows) > 1:
+        tables['소재'] = ad_rows
+    if inc_ext:
+        for k_name, r in ext_rows.items():
+            if len(r) > 1:
+                tables[k_name] = r
+
+    if not tables:
+        log('\n가져온 현황이 없어 파일을 만들지 않았습니다. 선택한 대상 항목과 계정을 확인하세요.')
         return None
+
     out = write_snapshot_file(os.path.join(config.OUTPUT_DIR, f'현황_{dt.datetime.now():%Y%m%d_%H%M%S}.xlsx'), tables)
     total = sum(len(r) - 1 for r in tables.values())
     log(f'\n현황 {total}행을 시트 {len(tables)}개로 저장했습니다: {out}')
