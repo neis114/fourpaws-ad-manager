@@ -647,24 +647,36 @@ with tab_snapshot:
     if not AVAILABLE_ACCOUNTS:
         st.warning("등록된 광고 계정 정보가 없습니다. Streamlit Secrets 설정을 확인하십시오.")
     else:
-        selected_accounts = st.multiselect(
-            "대상 광고 계정 선택",
-            options=AVAILABLE_ACCOUNTS,
-            default=AVAILABLE_ACCOUNTS[:2] if len(AVAILABLE_ACCOUNTS) >= 2 else AVAILABLE_ACCOUNTS
-        )
+        col_opt1, col_opt2 = st.columns([1, 1])
+        with col_opt1:
+            selected_accounts = st.multiselect(
+                "대상 광고 계정 선택",
+                options=AVAILABLE_ACCOUNTS,
+                default=AVAILABLE_ACCOUNTS[:2] if len(AVAILABLE_ACCOUNTS) >= 2 else AVAILABLE_ACCOUNTS
+            )
+        with col_opt2:
+            TARGET_OPTIONS = ["전체", "캠페인", "그룹", "키워드", "소재", "확장소재"]
+            selected_targets = st.multiselect(
+                "내려받을 데이터 범위 선택",
+                options=TARGET_OPTIONS,
+                default=["전체"],
+                help="'전체'를 선택하거나, 캠페인/그룹/키워드/소재/확장소재 중 필요한 항목만 골라서 빠르게 내려받을 수 있습니다."
+            )
+
+        st.caption("💡 대형 계정(키워드 수만 개)의 경우, 캠페인이나 그룹 ID만 필요할 때 **'캠페인'**, **'그룹'**만 선택하시면 수초 내에 초고속으로 다운로드됩니다.")
 
         col_snap, _ = st.columns([1, 3])
         with col_snap:
             btn_snap = st.button("실시간 계정 정보 엑셀 생성", type="primary", use_container_width=True)
 
-        if btn_snap and selected_accounts:
+        if btn_snap and selected_accounts and selected_targets:
             snap_logs = []
             def snap_web_log(msg):
                 snap_logs.append(str(msg))
 
-            with st.status("네이버 계정 전체 데이터 수집 및 엑셀 작성 중...", expanded=True) as snap_status:
+            with st.status("네이버 계정 실시간 데이터 수집 및 엑셀 작성 중...", expanded=True) as snap_status:
                 try:
-                    out_path = runner.snapshot(selected_accounts, env=ENV, log=snap_web_log)
+                    out_path = runner.snapshot(selected_accounts, env=ENV, log=snap_web_log, targets=selected_targets)
                     snap_status.update(label="계정 정보 수집 완료", state="complete")
                     if out_path and os.path.exists(out_path):
                         with open(out_path, "rb") as f:
